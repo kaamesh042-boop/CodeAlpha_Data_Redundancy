@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DataGuard Cloud — Redundancy Removal System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#f3ede3;color:#3a342c;font-family:'Sora',sans-serif;overflow:hidden}
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#e0d4c0;border-radius:3px}
+  .sora{font-family:'Sora',sans-serif!important}
+  .mono{font-family:'Space Mono','Courier New',monospace!important}
+  input,select{background:#fffdf9;color:#3a342c;border:1.5px solid #e6dac4;border-radius:8px;padding:8px 11px;font-size:12.5px;font-family:'Sora',sans-serif;width:100%;outline:none;transition:border-color .15s,box-shadow .15s}
+  input:focus,select:focus{border-color:#d97a52;box-shadow:0 0 0 3px rgba(217,122,82,.14)}
+  input::placeholder{color:#bba98c}
+  select option{background:#fffdf9}
+  .btn{cursor:pointer;border:1.5px solid #e6dac4;border-radius:8px;padding:8px 14px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;font-family:'Sora',sans-serif;font-weight:600;background:#fffdf9;color:#7a6f5d;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{border-color:#d97a52;color:#bd5a36;background:#fff7f1}
+  .btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+  .btn-primary{background:#d97a52;color:#fffaf5;border-color:#d97a52}
+  .btn-primary:hover{background:#c2693f;border-color:#c2693f;box-shadow:0 4px 14px rgba(217,122,82,.35)}
+  .btn-danger{background:#fdf0ee;color:#c1402e;border-color:#f3c9c1}
+  .btn-danger:hover{background:#fbe3df;border-color:#e8a99c}
+  .btn-amber{background:#fdf4e3;color:#a86c14;border-color:#f0d9a4}
+  .btn-amber:hover{background:#fbecd0;border-color:#e3c581}
+  .tab{cursor:pointer;padding:9px 14px;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;border:none;border-radius:9px;color:#a6987f;transition:all .15s;font-family:'Sora',sans-serif;background:none;white-space:nowrap;text-align:left;display:flex;align-items:center;gap:9px}
+  .tab.active{background:#3a342c;color:#f3ede3;box-shadow:0 3px 10px rgba(58,52,44,.25)}
+  .tab:hover:not(.active){color:#5a4f40;background:#ece2d0}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slideIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes scanBar{from{width:0}to{width:100%}}
+  .pulse{animation:pulse 1.4s ease-in-out infinite}
+  .fade-in{animation:fadeIn .3s ease}
+  .slide-in{animation:slideIn .3s ease}
+  .glow-green{box-shadow:0 4px 16px rgba(74,157,110,.18)}
+  .glow-red{box-shadow:0 4px 16px rgba(193,64,46,.18)}
+  .glow-amber{box-shadow:0 4px 16px rgba(168,108,20,.18)}
+  .glow-blue{box-shadow:0 4px 16px rgba(70,103,140,.18)}
+  .record-row{border-bottom:1px solid #ece2d0;transition:background .12s}
+  .record-row:hover{background:#fbf6ec!important}
+
+  /* ── layout: sidebar | results | controls ── */
+  #app{display:grid;grid-template-columns:84px 1fr 360px;height:100vh}
+
+  #sidebar{background:#3a342c;display:flex;flex-direction:column;align-items:center;padding:18px 0;gap:22px}
+  #sidebar .logo{width:42px;height:42px;background:#d97a52;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff;position:relative}
+  #sidebar .logo .dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:#5fb888;border:2px solid #3a342c}
+  #sidebar .stat{text-align:center}
+  #sidebar .stat .v{font-family:'Sora',sans-serif;font-weight:800;font-size:20px;color:#f3ede3}
+  #sidebar .stat .l{font-family:'Space Mono',monospace;font-size:7.5px;color:#9a8f7c;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+  #sidebar .stack{display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center}
+  #sidebar .tabs-v{display:flex;flex-direction:column;gap:6px;margin-top:auto}
+  #sidebar .tab-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:17px;color:#9a8f7c;cursor:pointer;transition:all .15s;background:none;border:none}
+  #sidebar .tab-icon.active{background:#d97a52;color:#fff}
+  #sidebar .tab-icon:hover:not(.active){background:#4a4338;color:#e6dac4}
+
+  #center{overflow-y:auto;background:#f3ede3;padding:26px 30px}
+  #right{background:#fffdf9;border-left:1px solid #e6dac4;display:flex;flex-direction:column;overflow:hidden}
+
+  #panel-bar{padding:16px 18px 10px;border-bottom:1px solid #ece2d0;flex-shrink:0}
+  #panel-bar .tabs-h{display:flex;gap:6px;margin-bottom:0}
+  #panel-content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+  .tab-panel{display:none;flex:1;flex-direction:column;overflow:hidden}
+  .tab-panel.active{display:flex}
+  #submit-scroll{flex:1;overflow-y:auto;padding:16px 18px}
+  #db-inner{flex:1;overflow-y:auto}
+  #log-inner{flex:1;overflow-y:auto}
+
+  #state-idle,#state-scanning,#state-result{display:none}
+  #state-idle.active,#state-scanning.active,#state-result.active{display:flex}
+  #state-idle{flex-direction:column;min-height:100%}
+  #state-scanning{flex-direction:column;align-items:center;justify-content:center;gap:20px;min-height:60vh}
+  #state-result{flex-direction:column}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="logo">⬡<div class="dot pulse"></div></div>
+    <div class="stack">
+      <div class="stat"><div class="v" id="h-total">5</div><div class="l">Total</div></div>
+      <div class="stat"><div class="v" style="color:#5fb888" id="h-added">0</div><div class="l">Added</div></div>
+      <div class="stat"><div class="v" style="color:#e8786a" id="h-blocked">0</div><div class="l">Blocked</div></div>
+      <div class="stat"><div class="v" style="color:#e0ad5a" id="h-flagged">0</div><div class="l">Flagged</div></div>
+    </div>
+    <div class="tabs-v">
+      <button class="tab-icon active" onclick="switchTab('submit')" id="tab-submit" title="Submit">◈</button>
+      <button class="tab-icon" onclick="switchTab('database')" id="tab-database" title="Database">⊞</button>
+      <button class="tab-icon" onclick="switchTab('log')" id="tab-log" title="Audit Log">≡</button>
+    </div>
+  </div>
+
+  <!-- CENTER: analytics / scan / result -->
+  <div id="center">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">
+      <div>
+        <div class="sora" style="font-size:21px;font-weight:800;color:#3a342c">DataGuard Cloud</div>
+        <div class="mono" style="font-size:10px;color:#a6987f;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">Redundancy Removal System · v2.0</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e6dac4;border-radius:20px;padding:6px 14px">
+        <div style="width:7px;height:7px;border-radius:50%;background:#5fb888" class="pulse"></div>
+        <span class="mono" style="font-size:10px;color:#6a8f78;letter-spacing:1px;font-weight:700">LIVE</span>
+      </div>
+    </div>
+
+    <!-- IDLE STATE -->
+    <div id="state-idle" class="active">
+      <div id="analytics-cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+        <div style="background:#fff;border:1px solid #ece2d0;border-radius:14px;padding:16px 18px">
+          <div class="mono" style="font-size:9.5px;color:#a6987f;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:12px;font-weight:700">Services</div>
+          <div id="analytics-services"></div>
+        </div>
+        <div style="background:#fff;border:1px solid #ece2d0;border-radius:14px;padding:16px 18px">
+          <div class="mono" style="font-size:9.5px;color:#a6987f;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:12px;font-weight:700">Instance Status</div>
+          <div id="analytics-status"></div>
+        </div>
+      </div>
+      <div id="outcomes-card" style="display:none;background:#fff;border:1px solid #ece2d0;border-radius:14px;padding:16px 18px;margin-bottom:18px">
+        <div class="mono" style="font-size:9.5px;color:#a6987f;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:12px;font-weight:700">Validation Outcomes</div>
+        <div id="outcomes-bar" style="display:flex;gap:3px;height:18px;border-radius:6px;overflow:hidden;margin-bottom:10px"></div>
+        <div id="outcomes-legend" style="display:flex;gap:16px"></div>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:50px 20px;background:#fff;border:1.5px dashed #e6dac4;border-radius:16px">
+        <div style="text-align:center">
+          <div class="sora" style="font-size:40px;color:#e6dac4">⬡</div>
+          <div class="mono" style="font-size:11px;color:#bba98c;margin-top:10px;letter-spacing:1.5px;font-weight:700">AWAITING RECORD SUBMISSION</div>
+          <div class="mono" style="font-size:10px;color:#c9bda3;margin-top:4px">Submit a record on the right to see validation results</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCANNING STATE -->
+    <div id="state-scanning">
+      <div style="position:relative;width:84px;height:84px">
+        <div style="position:absolute;inset:0;border:3px solid #ece2d0;border-radius:50%"></div>
+        <div id="spinner1" style="position:absolute;inset:0;border:3px solid transparent;border-top-color:#d97a52;border-radius:50%;animation:spin .7s linear infinite"></div>
+        <div id="spinner2" style="position:absolute;inset:11px;border:2px solid transparent;border-top-color:#e0ad5a;border-radius:50%;animation:spin 1.2s linear infinite reverse"></div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+          <span class="sora" style="font-size:18px;color:#d97a52">⬡</span>
+        </div>
+      </div>
+      <div>
+        <div class="sora" style="font-size:15px;font-weight:700;color:#3a342c;letter-spacing:1px;text-align:center;margin-bottom:14px">Scanning Database</div>
+        <div style="width:300px;height:4px;background:#ece2d0;border-radius:2px;overflow:hidden;margin-bottom:18px">
+          <div id="scan-progress" style="height:100%;background:linear-gradient(90deg,#e0ad5a,#d97a52);border-radius:2px;width:0;animation:scanBar 1s ease-out forwards"></div>
+        </div>
+        <div id="scan-steps" style="display:flex;flex-direction:column;gap:7px;align-items:center"></div>
+      </div>
+    </div>
+
+    <!-- RESULT STATE -->
+    <div id="state-result"></div>
+  </div>
+
+  <!-- RIGHT: controls (submit / database / log) -->
+  <div id="right">
+    <div id="panel-bar">
+      <div class="sora" style="font-size:13px;font-weight:700;color:#3a342c;margin-bottom:10px" id="panel-title">Submit Record</div>
+    </div>
+
+    <div id="panel-content">
+
+      <!-- SUBMIT TAB -->
+      <div class="tab-panel active" id="panel-submit">
+        <div id="submit-scroll">
+          <div style="display:flex;gap:5px;margin-bottom:16px">
+            <button class="btn" style="flex:1;font-size:9.5px" onclick="fillRandom()">⚙ Random</button>
+            <button class="btn btn-danger" style="flex:1;font-size:9.5px" onclick="fillDuplicate()">⊗ Clone</button>
+            <button class="btn btn-amber" style="flex:1;font-size:9.5px" onclick="fillNearDuplicate()">⚠ Near</button>
+          </div>
+
+          <div style="margin-bottom:11px">
+            <label class="mono" style="font-size:9.5px;color:#a6987f;display:block;margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700">Instance ID</label>
+            <input id="f-instanceId" placeholder="i-0a1b2c3d4e5f" oninput="previewHash()"/>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px">
+            <div>
+              <label class="mono" style="font-size:9.5px;color:#a6987f;display:block;margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700">CPU Usage (%)</label>
+              <input id="f-cpuUsage" type="number" min="0" max="100" placeholder="0–100" oninput="previewHash()"/>
+            </div>
+            <div>
+              <label class="mono" style="font-size:9.5px;color:#a6987f;display:block;margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700">Memory (%)</label>
+              <input id="f-memoryUsage" type="number" min="0" max="100" placeholder="0–100" oninput="previewHash()"/>
+            </div>
+          </div>
+          <div style="margin-bottom:11px">
+            <label class="mono" style="font-size:9.5px;color:#a6987f;display:block;margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700">Storage (GB)</label>
+            <input id="f-storageGB" type="number" min="0" placeholder="e.g. 120" oninput="previewHash()"/>
+          </div>
+          <div style="margin-bottom:11px">
+            <label class="mono" style="font-size:9.5px;color:#a6987f;display:block;margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700">Region</label>
+            <select id="f-region" onchange="previewHash()">
+              <option>us-east-1</option><option>us-west-2</option><option>eu-west-2</option>
+              <option>eu-central-1</option><option>ap-south-1</option><option>ap-southeast-1</option>
+              <option>sa-east-1</option><option>ca-central-1</option>
+            </select>
+          </div>
+          <div style="margin-bottom:11px">
+            <label class="mono" style="font-size:9.5px;color:#a6987f;display:block;margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700">Service</label>
+            <select id="f-service" onchange="previewHash()">
+              <option>EC2</option><option>Lambda</option><option>RDS</option><option>S3</option>
+              <option>ECS</option><option>EKS</option><option>CloudFront</option><option>DynamoDB</option>
+            </select>
+          </div>
+          <div style="margin-bottom:11px">
+            <label class="mono" style="font-size:9.5px;color:#a6987f;display:block;margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700">Status</label>
+            <select id="f-status" onchange="previewHash()">
+              <option>running</option><option>stopped</option><option>pending</option><option>terminated</option>
+            </select>
+          </div>
+
+          <div id="hash-preview" style="display:none;background:#fbf6ec;border:1px solid #ece2d0;border-radius:8px;padding:9px 12px;margin-bottom:14px;justify-content:space-between;align-items:center">
+            <span class="mono" style="font-size:9px;color:#a6987f;letter-spacing:.8px;font-weight:700">PREVIEW HASH</span>
+            <span class="mono" id="hash-val" style="font-size:11px;color:#5fa274;font-weight:700"></span>
+          </div>
+
+          <button class="btn btn-primary" id="btn-validate" style="width:100%;padding:11px;font-size:12px;justify-content:center" onclick="handleValidate()">
+            ⬡ Validate &amp; Submit Record
+          </button>
+        </div>
+      </div>
+
+      <!-- DATABASE TAB -->
+      <div class="tab-panel" id="panel-database">
+        <div style="padding:0 18px 12px;flex-shrink:0">
+          <input id="db-search" placeholder="Search instance, service, region..." style="margin-bottom:9px" oninput="renderDB()"/>
+          <div style="display:flex;gap:6px;align-items:center;justify-content:space-between">
+            <span class="mono" style="font-size:10px;color:#a6987f" id="db-count">5/5 records</span>
+            <button class="btn btn-danger" style="font-size:9.5px;padding:5px 11px" onclick="handlePurge()">⊗ Purge Duplicates</button>
+          </div>
+        </div>
+        <div id="db-inner"></div>
+      </div>
+
+      <!-- LOG TAB -->
+      <div class="tab-panel" id="panel-log">
+        <div style="padding:0 18px 10px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+          <span class="mono" style="font-size:10px;color:#a6987f" id="log-count">0 events</span>
+          <button class="btn" style="font-size:9px;padding:4px 9px" onclick="clearLog()">Clear</button>
+        </div>
+        <div id="log-inner"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ─── Data ─── */
+const INITIAL_DB = [
+  {id:"rec_001",timestamp:"2024-03-15T08:23:11Z",instanceId:"i-0a1b2c3d4e",region:"us-east-1",cpuUsage:72.4,memoryUsage:58.1,storageGB:120,status:"running",service:"EC2",hash:"a3f9e2b1"},
+  {id:"rec_002",timestamp:"2024-03-15T09:10:44Z",instanceId:"i-5f6g7h8i9j",region:"eu-west-2",cpuUsage:45.2,memoryUsage:81.3,storageGB:200,status:"running",service:"Lambda",hash:"b7c4d8e2"},
+  {id:"rec_003",timestamp:"2024-03-15T10:05:22Z",instanceId:"i-k1l2m3n4o5",region:"ap-south-1",cpuUsage:91.7,memoryUsage:76.5,storageGB:500,status:"stopped",service:"RDS",hash:"c1d5f9a3"},
+  {id:"rec_004",timestamp:"2024-03-15T11:33:07Z",instanceId:"i-p6q7r8s9t0",region:"us-west-2",cpuUsage:33.8,memoryUsage:42.0,storageGB:80,status:"running",service:"S3",hash:"d4e8b2f6"},
+  {id:"rec_005",timestamp:"2024-03-15T12:18:55Z",instanceId:"i-u1v2w3x4y5",region:"sa-east-1",cpuUsage:60.1,memoryUsage:67.9,storageGB:350,status:"running",service:"ECS",hash:"e7f1c5a9"},
+];
+let db = JSON.parse(JSON.stringify(INITIAL_DB));
+let auditLog = [];
+let stats = {added:0, blocked:0, falsePos:0};
+
+const FIELD_WEIGHTS = {instanceId:.35,region:.15,service:.15,cpuUsage:.1,memoryUsage:.1,storageGB:.1,status:.05};
+const REGIONS  = ["us-east-1","us-west-2","eu-west-2","eu-central-1","ap-south-1","ap-southeast-1","sa-east-1","ca-central-1"];
+const SERVICES = ["EC2","Lambda","RDS","S3","ECS","EKS","CloudFront","DynamoDB"];
+const STATUSES = ["running","stopped","pending","terminated"];
+const STATUS_COLOR = {running:"#5fb888",stopped:"#e8786a",pending:"#e0ad5a",terminated:"#a6987f"};
+const BADGE = {
+  exact_duplicate:{bg:"#fdf0ee",color:"#c1402e",border:"#f3c9c1",label:"Exact Duplicate",icon:"⊗",glow:"glow-red"},
+  near_duplicate: {bg:"#fdf4e3",color:"#a86c14",border:"#f0d9a4",label:"Near Duplicate", icon:"⚠",glow:"glow-amber"},
+  false_positive: {bg:"#eef3f8",color:"#46678c",border:"#cddcea",label:"False Positive", icon:"◎",glow:"glow-blue"},
+  unique:         {bg:"#eef7f0",color:"#3f8a5e",border:"#c8e6d1",label:"Unique",          icon:"✓",glow:"glow-green"},
+};
+
+/* ─── Hash & Similarity ─── */
+function computeHash(r){
+  const s=`${r.instanceId}|${r.region}|${r.service}|${Math.round(r.cpuUsage)}|${Math.round(r.memoryUsage)}|${r.storageGB}|${r.status}`;
+  let h=0; for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;
+  return Math.abs(h).toString(16).slice(0,8);
+}
+function similarityScore(a,b){
+  let s=0;
+  if(a.instanceId===b.instanceId)s+=FIELD_WEIGHTS.instanceId;
+  if(a.region===b.region)s+=FIELD_WEIGHTS.region;
+  if(a.service===b.service)s+=FIELD_WEIGHTS.service;
+  if(Math.abs(a.cpuUsage-b.cpuUsage)<5)s+=FIELD_WEIGHTS.cpuUsage;
+  if(Math.abs(a.memoryUsage-b.memoryUsage)<5)s+=FIELD_WEIGHTS.memoryUsage;
+  if(a.storageGB===b.storageGB)s+=FIELD_WEIGHTS.storageGB;
+  if(a.status===b.status)s+=FIELD_WEIGHTS.status;
+  return s;
+}
+function classifyRecord(rec){
+  const h=computeHash(rec);
+  const exact=db.find(r=>r.hash===h);
+  if(exact)return{type:"exact_duplicate",score:1.0,matchId:exact.id,reason:"Identical hash — all fields match exactly."};
+  let best={score:0,id:null};
+  for(const r of db){const sc=similarityScore(rec,r);if(sc>best.score)best={score:sc,id:r.id};}
+  if(best.score>=.75)return{type:"near_duplicate",score:best.score,matchId:best.id,reason:`${Math.round(best.score*100)}% field overlap with existing record.`};
+  if(best.score>=.45)return{type:"false_positive",score:best.score,matchId:best.id,reason:`Partial match (${Math.round(best.score*100)}%) — likely distinct with shared attributes.`};
+  return{type:"unique",score:best.score,matchId:best.id,reason:"No significant overlap detected. Record is unique."};
+}
+
+/* ─── Helpers ─── */
+function generateId(){return"i-"+Math.random().toString(36).slice(2,12);}
+function generateRecId(){return"rec_"+String(db.length+1).padStart(3,"0");}
+function fmt(ts){return new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});}
+function fmtFull(ts){return new Date(ts).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function getForm(){
+  return{
+    instanceId:document.getElementById("f-instanceId").value.trim(),
+    region:document.getElementById("f-region").value,
+    service:document.getElementById("f-service").value,
+    status:document.getElementById("f-status").value,
+    cpuUsage:parseFloat(document.getElementById("f-cpuUsage").value),
+    memoryUsage:parseFloat(document.getElementById("f-memoryUsage").value),
+    storageGB:parseInt(document.getElementById("f-storageGB").value),
+  };
+}
+function setForm(f){
+  document.getElementById("f-instanceId").value=f.instanceId||"";
+  document.getElementById("f-region").value=f.region||"us-east-1";
+  document.getElementById("f-service").value=f.service||"EC2";
+  document.getElementById("f-status").value=f.status||"running";
+  document.getElementById("f-cpuUsage").value=f.cpuUsage||"";
+  document.getElementById("f-memoryUsage").value=f.memoryUsage||"";
+  document.getElementById("f-storageGB").value=f.storageGB||"";
+  previewHash();
+}
+
+/* ─── Quick Fill ─── */
+function fillRandom(){setForm({instanceId:generateId(),region:pick(REGIONS),service:pick(SERVICES),status:pick(STATUSES),cpuUsage:(Math.random()*100).toFixed(1),memoryUsage:(Math.random()*100).toFixed(1),storageGB:pick([80,120,200,350,500])});}
+function fillDuplicate(){const src=pick(db);setForm({...src});}
+function fillNearDuplicate(){const src=pick(db);setForm({...src,cpuUsage:(src.cpuUsage+(Math.random()*8-4)).toFixed(1),memoryUsage:(src.memoryUsage+(Math.random()*8-4)).toFixed(1)});}
+
+/* ─── Hash Preview ─── */
+function previewHash(){
+  const f=getForm();
+  const el=document.getElementById("hash-preview");
+  if(f.instanceId){
+    const h=computeHash({...f,cpuUsage:f.cpuUsage||0,memoryUsage:f.memoryUsage||0,storageGB:f.storageGB||0});
+    document.getElementById("hash-val").textContent="#"+h;
+    el.style.display="flex";
+  }else{el.style.display="none";}
+}
+
+/* ─── Tab switching ─── */
+const TAB_LABELS={submit:"Submit Record",database:"Database",log:"Audit Log"};
+function switchTab(name){
+  ["submit","database","log"].forEach(t=>{
+    document.getElementById("tab-"+t).classList.toggle("active",t===name);
+    document.getElementById("panel-"+t).classList.toggle("active",t===name);
+  });
+  document.getElementById("panel-title").textContent=TAB_LABELS[name];
+  if(name==="database")renderDB();
+  if(name==="log")renderLog();
+}
+
+/* ─── Header counters ─── */
+function updateHeader(){
+  document.getElementById("h-total").textContent=db.length;
+  document.getElementById("h-added").textContent=stats.added;
+  document.getElementById("h-blocked").textContent=stats.blocked;
+  document.getElementById("h-flagged").textContent=stats.falsePos;
+}
+
+/* ─── Center panel states ─── */
+function showState(name){
+  ["idle","scanning","result"].forEach(s=>{
+    const el=document.getElementById("state-"+s);
+    el.classList.toggle("active",s===name);
+    el.style.display=s===name?"flex":"none";
+  });
+}
+
+/* ─── Analytics ─── */
+function renderAnalytics(){
+  const avgCpu=(db.reduce((a,r)=>a+r.cpuUsage,0)/db.length).toFixed(1);
+  const avgMem=(db.reduce((a,r)=>a+r.memoryUsage,0)/db.length).toFixed(1);
+  const bySvc={},bySt={};
+  db.forEach(r=>{bySvc[r.service]=(bySvc[r.service]||0)+1;bySt[r.status]=(bySt[r.status]||0)+1;});
+
+  const cards=[
+    {label:"Avg CPU",value:avgCpu+"%",color:"#d97a52",bar:avgCpu},
+    {label:"Avg Memory",value:avgMem+"%",color:"#5fb888",bar:avgMem},
+    {label:"Services",value:Object.keys(bySvc).length,color:"#e0ad5a",bar:null},
+    {label:"Regions",value:new Set(db.map(r=>r.region)).size,color:"#8a7bc4",bar:null},
+  ];
+  document.getElementById("analytics-cards").innerHTML=cards.map(c=>`
+    <div style="background:#fff;border:1px solid #ece2d0;border-radius:14px;padding:14px 16px">
+      <div class="mono" style="font-size:9px;color:#a6987f;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;font-weight:700">${c.label}</div>
+      <div class="sora" style="font-size:23px;font-weight:800;color:${c.color}">${c.value}</div>
+      ${c.bar!==null?`<div style="height:4px;background:#f3ede3;border-radius:2px;margin-top:9px"><div style="height:100%;width:${Math.min(c.bar,100)}%;background:${c.color};border-radius:2px;transition:width .6s"></div></div>`:""}
+    </div>`).join("");
+
+  const svcEntries=Object.entries(bySvc).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("analytics-services").innerHTML=svcEntries.map(([s,n])=>`
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span class="mono" style="font-size:10.5px;color:#5a4f40;font-weight:700">${s}</span>
+        <span class="mono" style="font-size:10.5px;color:#a6987f">${n}</span>
+      </div>
+      <div style="height:5px;background:#f3ede3;border-radius:3px">
+        <div style="height:100%;width:${(n/db.length)*100}%;background:#d97a52;border-radius:3px;transition:width .6s"></div>
+      </div>
+    </div>`).join("");
+
+  const stEntries=Object.entries(bySt).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("analytics-status").innerHTML=stEntries.map(([s,n])=>`
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span class="mono" style="font-size:10.5px;color:${STATUS_COLOR[s]||"#a6987f"};font-weight:700">● ${s}</span>
+        <span class="mono" style="font-size:10.5px;color:#a6987f">${n}</span>
+      </div>
+      <div style="height:5px;background:#f3ede3;border-radius:3px">
+        <div style="height:100%;width:${(n/db.length)*100}%;background:${STATUS_COLOR[s]||"#a6987f"};border-radius:3px;transition:width .6s"></div>
+      </div>
+    </div>`).join("");
+
+  const total=stats.added+stats.blocked+stats.falsePos;
+  const oCard=document.getElementById("outcomes-card");
+  if(total>0){
+    oCard.style.display="block";
+    const outcomes=[{v:stats.added,c:"#5fb888",label:"Unique"},{v:stats.blocked,c:"#e8786a",label:"Blocked"},{v:stats.falsePos,c:"#e0ad5a",label:"Flagged"}];
+    document.getElementById("outcomes-bar").innerHTML=outcomes.filter(o=>o.v>0).map(o=>`<div style="width:${(o.v/total)*100}%;background:${o.c};transition:width .5s" title="${o.label}: ${o.v}"></div>`).join("");
+    document.getElementById("outcomes-legend").innerHTML=outcomes.map(o=>`<div style="display:flex;align-items:center;gap:6px"><div style="width:7px;height:7px;border-radius:50%;background:${o.c}"></div><span class="mono" style="font-size:9.5px;color:#7a6f5d;font-weight:700">${o.label}: ${o.v}</span></div>`).join("");
+  }else{oCard.style.display="none";}
+}
+
+/* ─── Database panel ─── */
+function renderDB(){
+  const q=(document.getElementById("db-search").value||"").toLowerCase();
+  const filtered=db.filter(r=>!q||r.instanceId.includes(q)||r.service.toLowerCase().includes(q)||r.region.includes(q));
+  document.getElementById("db-count").textContent=`${filtered.length}/${db.length} records`;
+  document.getElementById("db-inner").innerHTML=filtered.length===0
+    ?`<div class="mono" style="padding:24px;text-align:center;color:#bba98c">No matching records</div>`
+    :filtered.map((r,i)=>`
+      <div class="record-row" style="padding:10px 18px;background:${i%2===0?"#fffdf9":"#fbf6ec"}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span class="mono" style="font-size:11px;color:#3a342c;font-weight:700">${r.id}</span>
+          <div style="display:flex;gap:5px;align-items:center">
+            <span class="mono" style="font-size:9px;background:#f3ede3;color:#a87a4a;padding:3px 7px;border-radius:5px;border:1px solid #e6dac4;font-weight:700">${r.service}</span>
+            <button class="btn" style="padding:2px 7px;font-size:9px;color:#c1402e;border:1px solid #f3c9c1;background:#fdf0ee" onclick="deleteRecord('${r.id}')">✕</button>
+          </div>
+        </div>
+        <div class="mono" style="font-size:11px;color:#5a4f40;margin-bottom:4px">${r.instanceId}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:9px">
+          <span class="mono" style="font-size:10px;color:#a6987f">⬡ ${r.region}</span>
+          <span class="mono" style="font-size:10px;color:${STATUS_COLOR[r.status]||"#a6987f"};font-weight:700">● ${r.status}</span>
+          <span class="mono" style="font-size:10px;color:#a6987f">CPU ${r.cpuUsage}%</span>
+          <span class="mono" style="font-size:10px;color:#a6987f">MEM ${r.memoryUsage}%</span>
+          <span class="mono" style="font-size:10px;color:#c9bda3">#${r.hash}</span>
+        </div>
+        <div class="mono" style="font-size:9px;color:#c9bda3;margin-top:4px">${fmtFull(r.timestamp)}</div>
+      </div>`).join("");
+}
+function deleteRecord(id){db=db.filter(r=>r.id!==id);renderDB();updateHeader();renderAnalytics();}
+
+/* ─── Audit Log ─── */
+function renderLog(){
+  document.getElementById("log-count").textContent=`${auditLog.length} events`;
+  const el=document.getElementById("log-inner");
+  if(auditLog.length===0){el.innerHTML=`<div class="mono" style="padding:24px;text-align:center;color:#bba98c">No events recorded yet</div>`;return;}
+  el.innerHTML=auditLog.map(e=>{
+    const b=BADGE[e.type]||{color:"#7a6f5d",label:"System",icon:"◈"};
+    const dot=e.type==="exact_duplicate"?"#e8786a":e.type==="near_duplicate"?"#e0ad5a":e.type==="false_positive"?"#6f93b8":e.type==="unique"?"#5fb888":"#a6987f";
+    return`<div class="slide-in record-row" style="padding:9px 18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span class="mono" style="font-size:11px;color:#5a4f40;font-weight:700">${e.instanceId}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:6px;height:6px;border-radius:50%;background:${dot}"></div>
+          <span class="mono" style="font-size:9px;color:${b.color};font-weight:700">${b.label||"SYSTEM"}</span>
+        </div>
+      </div>
+      <div class="mono" style="font-size:10px;color:#a6987f">${e.service} · ${e.region} · ${fmt(e.time)}${e.type!=="cleanup"?` <span style="color:#c9bda3">${Math.round(e.score*100)}% sim</span>`:""}</div>
+    </div>`;
+  }).join("");
+}
+function clearLog(){auditLog=[];renderLog();}
+
+/* ─── Scan animation ─── */
+let scanTimer=null;
+function startScan(){
+  const steps=["Hash fingerprint check","Exact match detection","Similarity scoring","Near-duplicate analysis"];
+  const el=document.getElementById("scan-steps");
+  el.innerHTML=steps.map(s=>`<div class="mono" style="display:flex;align-items:center;gap:8px;font-size:10.5px;color:#c9bda3"><span>▷</span><span>${s}</span></div>`).join("");
+  document.getElementById("scan-progress").style.cssText="height:100%;background:linear-gradient(90deg,#e0ad5a,#d97a52);border-radius:2px;width:0;animation:scanBar 1s ease-out forwards";
+  let step=0;
+  scanTimer=setInterval(()=>{
+    if(step<steps.length){
+      const rows=el.querySelectorAll("div");
+      if(rows[step]){rows[step].innerHTML=`<span style="color:#5fb888">✓</span><span style="color:#5a4f40">${steps[step]}</span>`;}
+      step++;
+    }
+  },220);
+}
+function stopScan(){clearInterval(scanTimer);}
+
+/* ─── Validate & Submit ─── */
+async function handleValidate(){
+  const f=getForm();
+  if(!f.instanceId||isNaN(f.cpuUsage)||isNaN(f.memoryUsage)||isNaN(f.storageGB))return;
+  const btn=document.getElementById("btn-validate");
+  btn.disabled=true; btn.innerHTML="<span class='pulse'>⬡</span> Scanning Database...";
+  showState("scanning"); startScan();
+
+  await new Promise(r=>setTimeout(r,1100));
+  stopScan();
+  f.hash=computeHash(f);
+  const cls=classifyRecord(f);
+  const b=BADGE[cls.type];
+
+  if(cls.type==="unique"){db.push({...f,id:generateRecId(),timestamp:new Date().toISOString()});stats.added++;}
+  else if(cls.type==="false_positive"){stats.falsePos++;}
+  else{stats.blocked++;}
+
+  auditLog.unshift({time:new Date().toISOString(),instanceId:f.instanceId,service:f.service,region:f.region,type:cls.type,score:cls.score});
+  auditLog=auditLog.slice(0,100);
+  updateHeader(); renderAnalytics();
+
+  const matchRec=cls.matchId?db.find(r=>r.id===cls.matchId):null;
+  function fieldMatch(field){
+    if(!matchRec)return null;
+    if(field==="instanceId")return f.instanceId===matchRec.instanceId;
+    if(field==="region")return f.region===matchRec.region;
+    if(field==="service")return f.service===matchRec.service;
+    if(field==="cpuUsage")return Math.abs(f.cpuUsage-matchRec.cpuUsage)<5;
+    if(field==="memoryUsage")return Math.abs(f.memoryUsage-matchRec.memoryUsage)<5;
+    if(field==="storageGB")return f.storageGB===matchRec.storageGB;
+    if(field==="status")return f.status===matchRec.status;
+    return null;
+  }
+
+  const actionLabel=cls.type==="unique"?"✓ APPENDED TO DATABASE":cls.type==="exact_duplicate"?"⊗ BLOCKED — EXACT DUPLICATE":cls.type==="near_duplicate"?"⊗ BLOCKED — NEAR DUPLICATE":"⚠ FLAGGED FOR REVIEW";
+  const matchedBadge=cls.matchId?`<span class="mono" style="font-size:10px;background:rgba(255,255,255,.5);color:${b.color};padding:4px 9px;border-radius:6px;border:1px solid ${b.border};font-weight:700">MATCHED: ${cls.matchId}</span>`:"";
+
+  const fieldWeightHTML=Object.entries(FIELD_WEIGHTS).map(([field,w])=>{
+    const m=fieldMatch(field);
+    const barColor=m===null?"#d97a52":m?"#5fb888":"#e8786a";
+    const icon=m!==null?`<span style="font-size:11px;color:${m?"#3f8a5e":"#c1402e"};width:12px">${m?"✓":"✗"}</span>`:"";
+    return`<div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+      <div class="mono" style="width:82px;font-size:9.5px;color:#a6987f;flex-shrink:0">${field}</div>
+      <div style="flex:1;height:5px;background:#f3ede3;border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${w*100}%;background:${barColor};border-radius:3px;transition:width .6s"></div>
+      </div>
+      <div class="mono" style="width:26px;font-size:9.5px;color:#c9bda3;text-align:right">${Math.round(w*100)}%</div>
+      ${icon}
+    </div>`;
+  }).join("");
+
+  const matchCompare=matchRec?`
+    <div style="margin-top:13px;padding-top:11px;border-top:1px solid #ece2d0">
+      <div class="mono" style="font-size:9.5px;color:#a6987f;letter-spacing:.8px;margin-bottom:7px;font-weight:700">MATCHED RECORD: ${matchRec.id}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+        ${[["CPU",matchRec.cpuUsage+"%"],["MEM",matchRec.memoryUsage+"%"],["SVC",matchRec.service],["REG",matchRec.region]].map(([k,v])=>`<div class="mono" style="font-size:9.5px;color:#7a6f5d"><span style="color:#c9bda3">${k}: </span>${v}</div>`).join("")}
+      </div>
+    </div>`:"";
+
+  const recDetails=[
+    ["INSTANCE",f.instanceId],["SERVICE",f.service],["REGION",f.region],["STATUS",f.status],
+    ["CPU",f.cpuUsage+"%"],["MEMORY",f.memoryUsage+"%"],["STORAGE",f.storageGB+" GB"],["HASH","#"+f.hash],
+  ].map(([k,v])=>`<div style="background:#f3ede3;border-radius:8px;padding:8px 10px"><div class="mono" style="font-size:8.5px;color:#bba98c;letter-spacing:.8px;margin-bottom:3px;font-weight:700">${k}</div><div class="mono" style="font-size:10.5px;color:#3a342c;word-break:break-all;font-weight:700">${v}</div></div>`).join("");
+
+  const html=`<div class="fade-in">
+    <div style="background:${b.bg};border:1px solid ${b.border};border-radius:16px;padding:20px 24px;margin-bottom:16px" class="${b.glow}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="sora" style="font-size:30px;color:${b.color}">${b.icon}</span>
+          <div>
+            <div class="sora" style="font-size:17px;font-weight:800;color:${b.color};letter-spacing:.5px">${b.label}</div>
+            <div class="mono" style="font-size:10.5px;color:${b.color};opacity:.8;margin-top:2px">${cls.reason}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="sora" style="font-size:34px;font-weight:800;color:${b.color};line-height:1">${Math.round(cls.score*100)}%</div>
+          <div class="mono" style="font-size:8px;color:${b.color};opacity:.7;letter-spacing:1.5px;margin-top:2px">SIMILARITY</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">
+        <span class="mono" style="font-size:10px;background:rgba(255,255,255,.5);color:${b.color};padding:4px 9px;border-radius:6px;border:1px solid ${b.border};font-weight:700">${actionLabel}</span>
+        ${matchedBadge}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div style="background:#fff;border:1px solid #ece2d0;border-radius:14px;padding:16px 18px">
+        <div class="mono" style="font-size:9.5px;color:#a6987f;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:12px;font-weight:700">Submitted Record</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${recDetails}</div>
+      </div>
+      <div style="background:#fff;border:1px solid #ece2d0;border-radius:14px;padding:16px 18px">
+        <div class="mono" style="font-size:9.5px;color:#a6987f;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:12px;font-weight:700">Field Weight Analysis</div>
+        ${fieldWeightHTML}${matchCompare}
+      </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #ece2d0;border-radius:14px;padding:16px 18px">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:11px">
+        <div style="width:22px;height:22px;background:#f3ede3;border:1px solid #e6dac4;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px">⬡</div>
+        <div class="mono" style="font-size:9.5px;color:#a6987f;letter-spacing:1.2px;text-transform:uppercase;font-weight:700">AI Analysis</div>
+        <span id="ai-loading" class="pulse" style="font-size:10px;color:#c9bda3">●●●</span>
+      </div>
+      <div id="ai-text" style="font-size:11.5px;color:#5a4f40;line-height:1.8" class="mono"></div>
+    </div>
+  </div>`;
+
+  document.getElementById("state-result").innerHTML=html;
+  showState("result");
+  btn.disabled=false; btn.innerHTML="⬡ Validate &amp; Submit Record";
+
+  try{
+    const prompt=`You are a cloud infrastructure data quality AI. Analyze this cloud resource record and its redundancy classification. Be concise — 3 sentences max.\n\nInstance ID: ${f.instanceId} | Service: ${f.service} | Region: ${f.region}\nCPU: ${f.cpuUsage}% | Memory: ${f.memoryUsage}% | Storage: ${f.storageGB}GB | Status: ${f.status}\nClassification: ${cls.type.replace(/_/g," ").toUpperCase()} (${Math.round(cls.score*100)}% similarity)\nReason: ${cls.reason}${cls.matchId?" | Matched: "+cls.matchId:""}\n\nBriefly state: what this classification means, whether action is needed, and one clear recommendation.`;
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
+    const data=await res.json();
+    const txt=data.content?.map(b=>b.text||"").join("")||"";
+    document.getElementById("ai-loading").style.display="none";
+    document.getElementById("ai-text").textContent=txt;
+  }catch{
+    document.getElementById("ai-loading").style.display="none";
+    document.getElementById("ai-text").textContent="AI analysis unavailable.";
+  }
+}
+
+/* ─── Purge ─── */
+async function handlePurge(){
+  const seen=new Set();
+  const cleaned=db.filter(r=>{if(seen.has(r.hash))return false;seen.add(r.hash);return true;});
+  const removed=db.length-cleaned.length;
+  db=cleaned;
+  auditLog.unshift({time:new Date().toISOString(),instanceId:"SYSTEM",service:"PURGE",region:"—",type:"cleanup",score:1});
+  auditLog=auditLog.slice(0,100);
+  updateHeader(); renderDB(); renderAnalytics();
+
+  const html=`<div class="fade-in" style="background:#fdf0ee;border:1px solid #f3c9c1;border-radius:16px;padding:22px 24px">
+    <div class="sora" style="font-size:17px;font-weight:800;color:#c1402e;letter-spacing:.4px;margin-bottom:10px">Bulk Deduplication Complete</div>
+    <div style="display:flex;gap:28px;margin-bottom:14px">
+      <div><div class="sora" style="font-size:30px;font-weight:800;color:#c1402e">${removed}</div><div class="mono" style="font-size:9px;color:#b2675a;letter-spacing:1px;font-weight:700">DUPLICATES REMOVED</div></div>
+      <div><div class="sora" style="font-size:30px;font-weight:800;color:#3f8a5e">${cleaned.length}</div><div class="mono" style="font-size:9px;color:#6a9a7a;letter-spacing:1px;font-weight:700">RECORDS REMAINING</div></div>
+    </div>
+    <div id="purge-ai-loading" style="display:flex;gap:5px"><div class="pulse" style="width:7px;height:7px;border-radius:50%;background:#d99a8f"></div><div class="pulse" style="width:7px;height:7px;border-radius:50%;background:#d99a8f;animation-delay:.2s"></div><div class="pulse" style="width:7px;height:7px;border-radius:50%;background:#d99a8f;animation-delay:.4s"></div></div>
+    <div id="purge-ai-text" class="mono" style="font-size:11.5px;color:#8a5950;line-height:1.7"></div>
+  </div>`;
+  document.getElementById("state-result").innerHTML=html;
+  showState("result");
+
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`You are a cloud data quality expert. Bulk deduplication was run: ${removed} duplicates removed, ${cleaned.length} unique records remain. In 2-3 sentences, summarize the impact on database integrity and storage efficiency.`}]})});
+    const data=await res.json();
+    document.getElementById("purge-ai-loading").style.display="none";
+    document.getElementById("purge-ai-text").textContent=data.content?.map(b=>b.text||"").join("")||"";
+  }catch{
+    document.getElementById("purge-ai-loading").style.display="none";
+  }
+}
+
+/* ─── Init ─── */
+renderDB(); renderAnalytics(); updateHeader();
+showState("idle");
+</script>
+</body>
+</html>
